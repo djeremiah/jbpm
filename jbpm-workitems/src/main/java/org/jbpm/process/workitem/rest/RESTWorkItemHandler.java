@@ -50,7 +50,9 @@ import org.apache.http.client.protocol.ClientContext;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.auth.AuthScheme;
 import org.apache.http.impl.auth.BasicScheme;
+import org.apache.http.impl.auth.DigestScheme;
 import org.apache.http.impl.client.BasicAuthCache;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -298,17 +300,22 @@ public class RESTWorkItemHandler extends AbstractLogOrThrowWorkItemHandler {
         	throw new IllegalArgumentException("Could not find password");
         }
         
-        if (type == AuthenticationType.BASIC) {
+        if (type == AuthenticationType.BASIC || type == AuthenticationType.DIGEST) {
             // basic auth
             URI requestUri = requestBuilder.getUri();
             
             HttpHost targetHost = new HttpHost(requestUri.getHost(), requestUri.getPort(), requestUri.getScheme());
             
         	// Create AuthCache instance and add it: so that HttpClient thinks that it has already queried (as per the HTTP spec) 
-        	// - generate BASIC scheme object and add it to the local auth cache
+        	// - generate scheme object and add it to the local auth cache
         	AuthCache authCache = new BasicAuthCache();
-        	BasicScheme basicAuth = new BasicScheme();
-        	authCache.put(targetHost, basicAuth);
+            AuthScheme authScheme;
+            if(type == AuthenticationType.BASIC){
+                authScheme = new BasicScheme();
+            } else {
+                authScheme = new DigestScheme();
+            }
+        	authCache.put(targetHost, authScheme);
 
         	// - add AuthCache to the execution context:
         	HttpClientContext clientContext = HttpClientContext.create();
@@ -410,7 +417,7 @@ public class RESTWorkItemHandler extends AbstractLogOrThrowWorkItemHandler {
         if (p == null) {
         	throw new IllegalArgumentException("Could not find password");
         }
-        if (type == AuthenticationType.BASIC) {
+        if (type == AuthenticationType.BASIC || type == AuthenticationType.DIGEST) {
         	
         	HttpHost targetHost = new HttpHost(httpMethod.getURI().getHost(), httpMethod.getURI().getPort(), httpMethod.getURI().getScheme());
             ((DefaultHttpClient)httpclient).getCredentialsProvider().setCredentials(
@@ -420,10 +427,15 @@ public class RESTWorkItemHandler extends AbstractLogOrThrowWorkItemHandler {
             
             // Create AuthCache instance
             AuthCache authCache = new BasicAuthCache();
-            // Generate BASIC scheme object and add it to the local
+            // Generate scheme object and add it to the local
             // auth cache
-            BasicScheme basicAuth = new BasicScheme();
-            authCache.put(targetHost, basicAuth);
+            AuthScheme authScheme;
+            if(type == AuthenticationType.BASIC){
+                authScheme = new BasicScheme();
+            } else {
+                authScheme = new DigestScheme();
+            }
+            authCache.put(targetHost, authScheme);
 
             // Add AuthCache to the execution context
             BasicHttpContext localcontext = new BasicHttpContext();
@@ -482,6 +494,7 @@ public class RESTWorkItemHandler extends AbstractLogOrThrowWorkItemHandler {
     public enum AuthenticationType {
     	NONE,
     	BASIC,
+        DIGEST,
     	FORM_BASED
     }
 
